@@ -118,13 +118,11 @@ func main() {
 					fmt.Println("您选择了no，将不对硬盘序列号记录做修改。")
 				}
 
-			} else {
-				fmt.Println("警告:该设备没有发现可用的硬盘序列号")
 			}
-
 			dn.AmXlsx(true)
+		} else {
+			fmt.Println("警告:该设备没有发现可用的硬盘序列号")
 		}
-		//fmt.Println(cowNum, cardName, dn.Ip)
 
 	}
 }
