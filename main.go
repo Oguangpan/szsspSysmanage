@@ -1,128 +1,231 @@
-/*
-2018.02.28 by dead pig panndora
-
-Process:
-1. Get a list of hard drive addresses.
-2. Get mac address list.
-3. visit xlsx file search mac address, return the relevant data.
-4. According to the data set ip address.
-5. Prompt and modify the contents of the xlsx file according to the operation.
-*/
+// 通过查询当前设备部分信息到服务器中获取更多的信息
+// 设置当前设备的网络IP地址
 
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"os"
+	"net"
+	"os/exec"
+	"strconv"
+	"strings"
 
-	"github.com/Oguangpan/szsspSysManage/ynm3000"
+	"github.com/tealeg/xlsx"
 )
 
-// temp ip
-const tmpIp = "33.66.100.255"
+const xlsxFile string = "//33.66.96.14/public/2018Taizhang.xlsx"
+const tempIp string = "33.66.100.255"
+
+type ultinvsupgader interface {
+	Get() ([]string, []map[string]string)
+	Search(s string) (ss map[string]string)
+	Add(aOrm string, ss map[string]string)
+	Set(name string, ip string)
+}
+type uisg struct{}
+
+// *uisg.Get()(硬盘序列号切片，网卡键值对切片)
+func (p *uisg) Get() (s []string, m []map[string]string) {
+
+	ids_byte, _ := exec.Command("cmd", "/C", "wmic diskdrive get serialnumber").Output()
+	ids := string(ids_byte)
+	var slicel []string = strings.Fields(ids)[1:]
+	for _, j := range slicel {
+		s = append(s, j)
+	}
+
+	intf, err := net.Interfaces()
+	if err != nil {
+		return
+	}
+
+	for _, v := range intf {
+		tmp := make(map[string]string)
+		tmp["Name"] = v.Name
+		tmp["Mac"] = v.HardwareAddr.String()
+		if tmp["Mac"] != "" {
+			m = append(m, tmp)
+		}
+	}
+
+	return
+}
+
+// *uisg.Search(序列号或mac号)(服务器记录哈希表)
+func (p *uisg) Search(s string) (ss map[string]string) {
+
+	xlFile, err := xlsx.OpenFile(xlsxFile)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	for _, sheet := range xlFile.Sheets {
+		if sheet.Name == "计算机" {
+			for column, row := range sheet.Rows {
+				for _, cell := range row.Cells {
+					if cell.String() == s {
+						for i, cell := range row.Cells {
+							switch i {
+							case 2:
+								ss["部门"] = cell.String()
+							case 3:
+								ss["人员"] = cell.String()
+							case 9:
+								ss["序列号"] = cell.String()
+							case 10:
+								ss["Ip"] = cell.String()
+							case 11:
+								ss["Mac"] = cell.String()
+							}
+						}
+						// 返回数据中包含查到数据的行号，方便修改信息时使用。
+						ss["行号"] = strconv.Itoa(column)
+					}
+				}
+			}
+		}
+	}
+
+	return
+}
+
+// *uisg.Add(要修改的硬盘序列号, 硬件设备信息哈希表)
+func (p *uisg) Add(aOrm string, ss map[string]string) {
+
+	xlFile, err := xlsx.OpenFile(xlsxFile)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	if aOrm == "" {
+		// 存放硬盘序列号的参数为空，代表需要增加数据
+		for _, sheet := range xlFile.Sheets {
+			if sheet.Name == "计算机" {
+				row := sheet.AddRow()
+				s := []string{"-", "-", ss["部门"], ss["人员"], "-", "-", "-", "-",
+					"-", ss["序列号"], ss["Ip"], ss["Mac"], "-"}
+				for _, v := range s {
+					row.AddCell().Value = v
+				}
+				xlFile.Save(xlsxFile)
+				return
+			}
+		}
+	} else {
+		// 修改数据
+		for _, sheet := range xlFile.Sheets {
+			if sheet.Name == "计算机" {
+				u, _ := strconv.Atoi(ss["行号"])
+				sheet.Cell(u, 10).Value = aOrm
+				xlFile.Save(xlsxFile)
+				return
+			}
+		}
+	}
+
+}
+
+// *uisg.Set(要设置的IP地址)
+func (p *uisg) Set(name string, ip string) {
+	//TODO
+}
+
+// 主流程中通用的用户交互函数,根据输入的参数执行不同的行为。返回信息表。
+func HumanComputerInteraction(hdds []string, nets []map[string]string) (ss map[string]string) {
+
+	var w int
+
+	if len(hdds) > 0 {
+		fmt.Println("选择你要新添加的硬盘序列号。")
+		for k, v := range hdds {
+			fmt.Println(k, ":", v)
+		}
+
+		fmt.Scanf("%d\n", w)
+		ss["序列号"] = hdds[w]
+	}
+	if len(nets) > 0 {
+		fmt.Println("选择你要新添加的网卡MAC号。")
+		for k, v := range nets {
+			fmt.Println(k, ":", v["Mac"])
+		}
+		fmt.Scanf("%d\n", w)
+		ss["Mac"] = nets[w]["Mac"]
+	}
+
+	fmt.Scanf("%d\n", w)
+	ss["Mac"] = nets[w]["Mac"]
+	fmt.Println("请输入用户姓名：")
+	fmt.Scanln(ss["人员"])
+	fmt.Println("请输入用户部门：")
+	fmt.Scanln(ss["部门"])
+
+	return
+
+}
 
 func main() {
-	var dn *ynm3000.Computer
-	dn = new(ynm3000.Computer)
-	dn.GetHardNumber()
-	dn.GetMacAddress()
-	cowNum, _ := dn.SearchXlsx()
-	hddNum := len(dn.HddIds)
-	macNum := len(dn.MacAddress)
-	var yon string
-	var num int = 0
-	/*
-		分为两种情况, 依据mac地址为基础,第一种.如果有mac地址,而当前硬盘数据不相符,那么提示修改.
-		第二种情况是没有查询到相关mac地址,提示是否新增数据,添加一row,输入 部门 使用者, 上传 部门
-		使用者, 硬盘序列号,mac地址到服务器中, 后续ip分配工作直接编辑xlsx文件完成.
-	*/
-	var update bool
-	if cowNum == 0 {
-		// 没有查询到mac地址
+	var us ultinvsupgader
+	us = new(uisg)
+	hdds, nets := us.Get()
+	var devIt map[string]string
+	var cadName string
 
-		stdin := bufio.NewReader(os.Stdin)
-		fmt.Println("您的电脑信息并没有在服务器记录中，是否添加新的设备信息。 yes or no ?>")
-		fmt.Scanln(&yon)
-		if yon != "yes" {
-			return
+	if len(nets) > 0 {
+		//设置临时地址
+		fmt.Println("请选择需要设置IP的网卡名称：")
+		for k, v := range nets {
+			fmt.Println(k, v)
 		}
-		fmt.Println("请输入该设备使用者姓名>")
-		fmt.Scanln(&dn.User)
-		fmt.Println("请输入该设备的所属部门>")
-		fmt.Scanln(&dn.Department)
-		if hddNum > 1 {
-			fmt.Println("您的电脑拥有多个硬盘,请选择其中一个作为记录硬盘>")
-			for i, j := range dn.HddIds {
-				fmt.Println(i, ":", j)
-			}
-			fmt.Fscan(stdin, &num)
-			dn.HddId = dn.HddIds[num]
-		} else if hddNum > 1 {
-			dn.HddId = dn.HddIds[0]
-		} else {
-			fmt.Println("警告:没有发现该设备上的硬盘物理序列号")
-		}
-		if macNum > 1 {
-			fmt.Println("您的电脑中有多个网卡,请选择其中一个作为接入内网专用>")
-			for i, j := range dn.MacAddress {
-				fmt.Println(i, ": ", j["Name"], j["Mac"])
-			}
-			fmt.Fscan(stdin, &num)
-			dn.MacAddres = dn.MacAddress[num]["Mac"]
-
-		} else if macNum > 0 {
-			dn.MacAddres = dn.MacAddress[0]["Mac"]
-		} else {
-			fmt.Println("警告:没有在该设备上发现可用的网卡")
-		}
-		fmt.Println("该机器信息如下: \n用户:",
-			dn.User, "\n部门:",
-			dn.Department, "\n硬盘物理序列号:",
-			dn.HddId, "\n网卡IP地址:",
-			dn.MacAddres, "\n是否直接提交到服务器中? yes or no >")
-		fmt.Scanln(&yon)
-		if yon == "yes" {
-			dn.AmXlsx(false)
-		} else {
-			fmt.Println("您选择了no，结束提交，服务器记录中仍然没有该设备的记录。")
-		}
-		return
-
+		var l int
+		fmt.Scanf("%d\n", l)
+		cadName = nets[l]["Name"]
+		us.Set(cadName, tempIp)
 	} else {
-		// 查询到了mac地址, 判断硬盘序列号是否与服务器
-		if hddNum > 0 {
-			update = true
-			for _, j := range dn.HddIds {
-				if j == dn.HddId {
-					update = false
-				}
+		//没有发现网卡信息，程序结束
+		return
+	}
+	if len(hdds) > 0 {
+		// 读取到硬盘序列号
+		for _, v := range hdds {
+			infos := us.Search(v)
+			if infos["Ip"] == "" {
+				// 查询结果匹配则直接设置ip
+				us.Set(cadName, infos["Ip"])
+				return
 			}
-			if update {
-				fmt.Println("检查到当前电脑硬盘序列号与服务器记录不相符，是否修正？ yes or no>")
-				var q string
-				fmt.Scanln(&q)
-				if q == "yes" {
-					switch hddNum {
-					case hddNum == 1:
-						dn.HddId = dn.HddIds[0]
-					case hddNum > 1:
-						fmt.Println("您的设备中有多个硬盘，请选择需要绑定的那个。>")
-						for k, v := range dn.HddIds {
-							fmt.Println(k, ":", v)
-						}
-						fmt.Fscan(stdin, &num)
-						dn.HddId = dn.HddIds[num]
-					}
-				} else {
-					fmt.Println("您选择了no，将不对硬盘序列号记录做修改。")
-				}
-
-			}
-			dn.AmXlsx(true)
-		} else {
-			fmt.Println("警告:该设备没有发现可用的硬盘序列号")
 		}
+		// 数据库中有硬盘信息没有网卡信息,使用网卡地址搜索
+		for _, v := range nets {
+			infos := us.Search(v["Mac"])
+			if infos["Ip"] != "" {
+				// 找到信息,直接设置IP，提示增加硬盘信息
+				us.Set(cadName, infos["Ip"])
 
+				devIt = HumanComputerInteraction(hdds, nets)
+				us.Add(devIt["序列号"], infos)
+				fmt.Println("已更新硬盘序列号。", devIt["序列号"])
+				return
+			}
+		}
+		// 服务器记录中没有所有设备中的硬盘信息和网卡信息，提示添加。并返回。
+		devIt = HumanComputerInteraction(hdds, nets)
+		us.Add("", devIt)
+		return
+	} else {
+		// 没有从本设备中读取到硬盘序列号，使用网卡搜索信息
+		for _, v := range nets {
+			infos := us.Search(v["Mac"])
+			if infos["Ip"] != "" {
+				// 找到信息,返回信息,设置IP
+				us.Set(cadName, infos["Ip"])
+				return
+			}
+		}
+		// 没有在服务器中找到该设备的网卡信息，提示添加，并返回。
+		devIt = HumanComputerInteraction(hdds, nets)
+		us.Add("", devIt)
+		return
 	}
 }
