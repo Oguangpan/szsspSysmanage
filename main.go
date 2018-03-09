@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/axgle/mahonia"
 	"github.com/tealeg/xlsx"
 )
 
@@ -132,6 +133,16 @@ func (p *uisg) Add(aOrm string, ss map[string]string) {
 
 }
 
+// 转换GBK到UTF8,针对在windows系统下遇到的exec中文乱码问题。
+func ConvertToString(src string, srcCode string, tagCode string) string {
+	srcCoder := mahonia.NewDecoder(srcCode)
+	srcResult := srcCoder.ConvertString(src)
+	tagCoder := mahonia.NewDecoder(tagCode)
+	_, cdata, _ := tagCoder.Translate([]byte(srcResult), true)
+	result := string(cdata)
+	return result
+}
+
 // *uisg.Set(要设置的IP地址)
 func (p *uisg) Set(name string, ip string) {
 
@@ -144,14 +155,16 @@ func (p *uisg) Set(name string, ip string) {
 	var setDns2str string = nii + ad + name + " 61.139.2.69 index=2"
 
 	rinfo, _ := exec.Command("cmd", "/C", setIpstr).Output()
-	fmt.Println(string(rinfo))
+	fmt.Println(ConvertToString(string(rinfo), "gbk", "utf-8"))
 	rinfo, _ = exec.Command("cmd", "/C", setDns1str).Output()
-	fmt.Println(string(rinfo))
+	fmt.Println(ConvertToString(string(rinfo), "gbk", "utf-8"))
 	rinfo, _ = exec.Command("cmd", "/C", setDns2str).Output()
-	fmt.Println(string(rinfo))
+	fmt.Println(ConvertToString(string(rinfo), "gbk", "utf-8"))
+
 	fmt.Println("网络设置完毕,请检查.")
 	pingStr, _ := exec.Command("cmd", "/C", "ping -n 1 33.66.96.14").Output()
-	fmt.Println(string(pingStr))
+	fmt.Println(ConvertToString(string(pingStr), "gbk", "utf-8"))
+
 	return
 }
 
