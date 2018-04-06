@@ -29,11 +29,18 @@ type ultinvsupgader interface {
 }
 type uisg struct{}
 
+// 运行命令行程序并返回回显字符串
+func runComd(s string) (echo string) {
+	t, _ := exec.Command("cmd", "/C", s).Output()
+	echo = ConvertToString(string(t), "gbk", "utf-8")
+	return
+}
+
 // *uisg.Get()(硬盘序列号切片，网卡键值对切片)
 func (p *uisg) Get() (s []string, m []map[string]string) {
-
-	ids_byte, _ := exec.Command("cmd", "/C", "wmic diskdrive get serialnumber").Output()
-	ids := string(ids_byte)
+	ids := runComd("wmic diskdrive get serialnumber")
+	// ids_byte, _ := exec.Command("cmd", "/C", "wmic diskdrive get serialnumber").Output()
+	// ids := string(ids_byte)
 	var slicel []string = strings.Fields(ids)[1:]
 	for _, j := range slicel {
 		s = append(s, j)
@@ -143,28 +150,71 @@ func ConvertToString(src string, srcCode string, tagCode string) string {
 	return result
 }
 
+// 判断电脑系统
+func getWindowsVer() (ver string) {
+	s := runComd("ver")
+	if string.Contains(s, "10") {
+		ver = "10"
+	} else if string.Contains(s, "6.1") {
+		ver = "7"
+	} else if string.Contains(s, "5.1") {
+		ver = "xp"
+	} else {
+		ver = "null"
+	}
+	return
+}
+
 // *uisg.Set(要设置的IP地址)
 func (p *uisg) Set(name string, ip string) {
 
-	var nii string = "netsh interface ip "
-	var san string = "set address name="
-	var ad string = "add dns "
+	var ipstr string
+	var dnsstr string
+	// 判断当前操作系统版本 避免出现兼容性问题
+	ver := getWindowsVer()
+	switch ver {
+	case "xp":
+		/*
+			netsh interface ip set dns name="本地连接" source=static addr=114.114.114.114 register=primary
+			netsh interface ip set address name=\"本地连接\" source=static addr=192.167.1.2 mask=255.255.255.0 gateway=192.168.1.1 gwmetric=0
+		*/
+		ipstr = strings.Join([]string{"netsh interface ip set address",
+			"name=\"" + name + "\"",
+			"source=static",
+			"addr=" + ip,
+			"mask=255.255.224.0 gateway=33.66.99.169 gwmetric=0"}, " ")
 
-	var setIpstr string = nii + san + name + " static " + ip + " 255.255.224.0 33.66.99.169"
-	var setDns1str string = nii + ad + name + " 202.98.96.68 index=1"
-	var setDns2str string = nii + ad + name + " 61.139.2.69 index=2"
+		dnsstr = strings.Join([]string{"netsh interface ip set dns",
+			"name=\"" + name + "\"",
+			"source=static addr=1.1.1.1 register=primary"}, " ")
 
-	rinfo, _ := exec.Command("cmd", "/C", setIpstr).Output()
-	fmt.Println(ConvertToString(string(rinfo), "gbk", "utf-8"))
-	rinfo, _ = exec.Command("cmd", "/C", setDns1str).Output()
-	fmt.Println(ConvertToString(string(rinfo), "gbk", "utf-8"))
-	rinfo, _ = exec.Command("cmd", "/C", setDns2str).Output()
-	fmt.Println(ConvertToString(string(rinfo), "gbk", "utf-8"))
+	case "10":
+		/*
+			netsh interface ip set address name="ben" source=static address=33.66.100.100 mask=255.255.224.0 gateway=33.66.99.169
+			netsh interface ip add dnsservers name="ben" address=1.1.1.1
+			netsh interface ip add dnsservers name="ben" address=1.0.0.1 index=2
+		*/
+		ipstr = strings.Join([]string{"netsh interface ip set address",
+			"name=\"" + name + "\"",
+			"source=static",
+			"address=" + ip,
+			"mask=255.255.225.0 gateway=33.66.99.169"}, " ")
 
-	fmt.Println("网络设置完毕,请检查.")
-	pingStr, _ := exec.Command("cmd", "/C", "ping -n 1 33.66.96.14").Output()
-	fmt.Println(ConvertToString(string(pingStr), "gbk", "utf-8"))
+		dnsstr = strings.Join([]string{"netsh interface ip add dnsservers",
+			name,
+			"address=1.1.1.1"}, " ")
 
+	case "7":
+	//TODO
+	default:
+		fmt.Println("未知的操作系统.")
+		os.Exit()
+	}
+	// 调用系统命令行进行网络设置
+	runComd(ipstr)
+	runComd(dnsstr)
+
+	fmt.Println("网络设置完毕")
 	return
 }
 
@@ -209,8 +259,8 @@ func main() {
 	var devIt map[string]string
 	var cadName string
 
-	if len(nets) > 0 {
-		//设置临时地址
+	if len(nets) > 0 { //设置临时地址
+
 		fmt.Println("请选择需要设置IP的网卡名称：")
 		for k, v := range nets {
 			fmt.Println(k, v["Name"])
@@ -220,7 +270,7 @@ func main() {
 		us.Set(cadName, tempIp)
 	}
 
-	if len(hdds) != 0 {
+	if len(hdds) != 0 { // 读取到硬盘序列号
 		// 读取到硬盘序列号
 		for _, v := range hdds {
 			infos := us.Search(v)
