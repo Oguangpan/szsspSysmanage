@@ -1,0 +1,78 @@
+<html>
+  <head>
+    <meta charset="gb2312">
+    <title>三洲特管信息化设备设置工具辅助软件</title>
+  </head>
+  <style>
+    self.ready = function() {
+        //设置view对象不能改变大小
+        view.isResizeable = false;
+    };
+    body{
+      width: 100%;
+    }
+    .button{
+      width:287px;
+      margin: 1px;
+      color: #fff;
+      background: #456ef1;
+    }
+
+    .get:hover{background: #555;}
+    .set:hover{background: #888;}
+    .update:hover{background: #aaa;}
+
+
+    .top{
+      width:100%;
+      background-color: #4CAF50;
+    }
+    label{
+      width:100%;
+    }
+    .eidt{
+      background-color: #a3e6a6;
+    }
+    label.active{
+
+      font-size:150%;
+      text-align:center;
+      text-decoration-color: #9ff3ff;
+      color: white;
+    }
+    .lab {
+        width:90%;
+        display:run-in;
+        color: #000;
+        padding: 8px 16px;
+        text-decoration: none;
+    }
+    .lab:hover:not(.active) {
+        background-color: #555;
+        color: white;
+    }
+    input#ipe{
+      position: relative;
+      left: 21px;
+    }
+  </style>
+  <body>
+
+    <div class="top">
+      <label class="active" name="tilet">三洲特管信息化辅助工具</label>
+      <div class="eidt">
+        <div class="lab"><label>部门 <input type="text" name="bumen" value="" /></div>
+        <div class="lab"><label>人员 <input type="text" name="renyuan" value="" /></div>
+        <div class="lab"><label>硬盘 <input type="text" name="yingpan" value="" /></div>
+        <div class="lab"><label>网卡 <input type="text" name="wangka" value="" /></div>
+        <div class="lab"><label>Ip<input type="text" name="ip" id="ipe" value="" /></div>
+      </div>
+    </div>
+
+    <div class="lower">
+      <input type=button class="button get" name="duqu" value="读取硬件信息并联网"></input>
+      <input type=button class="button set" name="shezhi" value="设置临时ip或本机ip"></input>
+      <input type=button class="button update" name="tijiao" value="提交数据至服务器保存"></input>
+    </div>
+  </body>
+</html>
