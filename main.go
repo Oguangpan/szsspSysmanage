@@ -11,26 +11,80 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
 	"log"
+	"net"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
 
 	"github.com/sciter-sdk/go-sciter"
 	"github.com/sciter-sdk/go-sciter/window"
 )
 
-type xitong interface {
-	Shezhiwangluodizhi(dizhi string) error
-	Huoqubenjixinxi() xt
-	Huoqushujukuxinxi() xt
-	Shangchuanxinxi(xinxi xt)
+const xlsx文件 string = "//33.66.96.14/public/2018Taizhang.xlsx"
+const 临时Ip string = "33.66.100.255"
+
+// 定义接口
+type 系统 interface {
+	设置网络地址(地址 string) error
+	获取设备信息() 设备
+	获取数据库信息(string, string)
+	上传设备信息(信息 设备)
 }
 
-type xt struct {
-	yonghuming      string
-	bumen           string
-	yingpanxuliehao []string
-	wangkamac       []string
-	ipdizhi         string
+// 定义结构
+type 设备 struct {
+	用户名     string
+	部门      string
+	硬盘序列号列表 []string
+	网卡MAC列表 []string
+	IP地址    string
 }
+
+// 获取设备信息并初始化窗口中的列表元素
+func (p *设备) 获取设备信息() (m 设备) {
+	设备.硬盘序列号列表 = 获取硬盘序列号()
+	设备.网卡MAC列表 = 获取网卡MAC列表()
+	窗口重绘()
+}
+
+// 用户点击查询按钮，连接数据库获取相关信息
+func (p *设备) 获取数据库信息(硬盘序列号, 网卡MAC地址) {
+	// 这里获取窗口中被选中的硬盘序列号和网卡mac地址。
+	// 这里打算使用协程，同时在xlsx中查询硬盘和网卡
+	// 尝试通过三维数组加快搜索速度
+	表格, err := xlsx.FileToSlice(xlsxFile)
+	// xlxs对象, err := xlsx.OpenFile(xlsxFile)
+	if err != nil {
+		// fmt.Println(err)
+		// 这里应该在窗口中显示信息，暂时不知道怎么实现
+		return
+	}
+	// 20180411进度留存
+	其他信息 := make(chan []string)
+	go func(string) {
+		var 数据 []string
+		for k, v := range 表格 {
+			for i, l := range v {
+				for o, p := range l {
+					println(p)
+				}
+			}
+
+		}
+		其他信息 <- 数据
+	}(硬盘序列号, xlxs对象)
+
+	go 查询(网卡MAC地址)
+	信息1, 信息2 := <-其他信息, <-其他信息
+
+	return // 无需返回值，因为是使用 *设备 直接操作结构体本身中的元素
+}
+
+// 查询成功自动设置网络失败提示用户填写新设备相关信息并提交数据库
 
 func main() {
 	//创建window窗口
