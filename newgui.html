@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+</head>
+<style>
+/*
+ www.shejidaren.com colorId 3u21Tw0w0w0w0
+*/
+.top{
+    width:100%;
+    color:#ffa940;
+    margin:*;
+    background-color:#0969a2;
+    box-shadow:0px 9px 5px grey;
+}
+.bottom{
+    width:100%;
+    height:10px;
+    background-color:#03436a;
+}
+.medium{
+    margin:*;
+    width:100%;
+    background-color:#245a7a;
+    height:200px;
+}
+
+.left{
+    float:left;
+    width:30%;
+    height:100%;
+    background-color:#ffc073;
+}
+.right{
+    float:right;
+    width:70%;
+    height:100%;
+    background-color:#64a8d1;
+}
+button{
+    display:block;
+    width:60%;
+    height:20%;
+    margin-left:13%;
+    margin-top:10%;
+    background:#ff8c00;
+    color:#245a7a;
+    box-shadow:2px 2px 5px grey;
+    text-shadow:1px 1px 2px grey;
+}
+button:hover{
+    background:#309ad1;
+    color:#ffa940;
+}
+button:active{
+    background:red;
+    color:#ffa940;
+}
+select{
+    height:10%;
+}
+.label{
+    margin:*;
+    width:100%;
+    padding-left:10%;
+    color:#ffc073;
+    text-shadow:1px 1px 2px grey;
+}
+</style>
+<body>
+    <div class="top"><h1>Szssp computer control</h1></div>
+    <div class="medium">
+        <div class="left">
+            <button class="button setNet">Set Network</button>
+            <button class="button getInfo">Get Info</button>
+            <button class="button update">Update</button>
+        </div>
+        <div class="right">
+            <div class="label">User name: <input class="input name" type="text" value="name"></div>
+            <div class="label">Group: <input class="input name" type="text" value="name"></div>
+            <div class="label">Networks: <select>
+                <option value="volvo" selected>Volvo</option>
+                <option value="saab">Saab</option>
+                <option value="mercedes">Mercedes</option>
+                <option value="audi">Audi</option>
+            </select></div>
+            <div class="label">Serial Number: <select>
+                <option value="volvo" selected>volvo</option>
+                <option value="volv2">volv2</option>
+                <option value="volv3">volv3</option>
+                <option value="volv4">volv4</option>
+            </select></div>
+            <div class="label">Os version: <input class="input name" type="text" value="name"></div>
+            <div class="label">Ip Address: <input class="input name" type="text" value="name"></div>
+        </div>
+    </div>
+    <div class="bottom"></div>
+</body>
+</html>
