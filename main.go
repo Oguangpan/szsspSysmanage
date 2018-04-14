@@ -11,13 +11,12 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"os/exec"
-	"strconv"
+	//"strconv"
 	"strings"
 
 	"github.com/sciter-sdk/go-sciter"
@@ -72,11 +71,11 @@ func (p *thisComputer) getdeviceInfo() (h []string, c []map[string]string) {
 
 	// 系统版本号
 	s := runCmd("ver")
-	if string.Contains(s, "10") {
+	if strings.Contains(s, "10") {
 		p.osType = "win10"
-	} else if string.Contains(s, "6.1") {
+	} else if strings.Contains(s, "6.1") {
 		p.osType = "win7"
-	} else if string.Contains(s, "5.1") {
+	} else if strings.Contains(s, "5.1") {
 		p.osType = "winxp"
 	} else {
 		p.osType = "null"
@@ -138,7 +137,7 @@ func (p *thisComputer) getDbinfo() {
 func runCmd(s string) (echo string) {
 	t, _ := exec.Command("cmd", "/C", s).Output()
 	// echo = ConvertToString(string(t), "gbk", "utf-8")
-	echo = t
+	echo = string(t)
 	return
 }
 
@@ -183,7 +182,7 @@ func (p *thisComputer) setIp(name string, ip string) {
 			"address=1.1.1.1"}, " ")
 	default:
 		fmt.Println("未知的操作系统.")
-		os.Exit()
+		os.Exit(0)
 	}
 	// 调用系统命令行进行网络设置
 	runCmd(ipstr)
@@ -233,9 +232,19 @@ func main() {
 	getInfoButtonOnclick(root)
 	UpdateButtonOnclick(root)
 	closeWindow(root)
+
+	//var cmp systemer
+	cmp := new(thisComputer)
+	hds, mas := cmp.getdeviceInfo()
 	// 添加硬盘们的序列号到列表选择框中
-	set1, _ := root.SelectById("slNet")
-	set1.CallFunction("addOp", sciter.NewValue("ris"))
+	set1, _ := root.SelectById("slHdn")
+	set2, _ := root.SelectById("slNet")
+	for _, j := range hds {
+		set1.CallFunction("addOp", sciter.NewValue(j))
+	}
+	for _, j := range mas {
+		set2.CallFunction("addMac", sciter.NewValue(j["Name"]+":"+j["Mac"]))
+	}
 	// 添加网卡MAC地址列表到列表选择框中
 	w.Show()
 	w.Run()

@@ -17,8 +17,8 @@ html{
     color:#ffa940;
     margin:*;
     background-color:#0969a2;
-    box-shadow:0px 9px 5px grey;
     height:90px;
+    text-shadow:1px 1px 4px grey;
 }
 .bottom{
     width:100%;
@@ -53,7 +53,7 @@ html{
     background:#ff8c00;
     color:#245a7a;
     box-shadow:2px 2px 5px grey;
-    text-shadow:1px 1px 2px grey;
+    text-shadow:1px 0px 2px grey;
 }
 .left > button:hover{
     background:#309ad1;
@@ -73,7 +73,7 @@ select{
     width:100%;
     padding-left:10%;
     color:#ffc073;
-    text-shadow:1px 1px 2px grey;
+
 }
 .top > button{
   background: #0969a2;
@@ -96,12 +96,8 @@ select{
             <div class="label"><span>User name: </span><input class="input name" type="text" value="name"></div>
             <div class="label"><span>Group: </span><input class="input group" type="text" value="name"></div>
             <div class="label"><span>Networks: </span><select id="slNet">
-                <option value="volvo" selected>Volvo</option>
-                <option value="saab">Saab</option>
             </select></div>
             <div class="label"><span>Serial Number: </span><select id="slHdn">
-                <option value="volvo" selected>volvo</option>
-                <option value="volv2">volv2</option>
             </select></div>
             <div class="label"><span>Os version: </span><input class="input version" type="text" value="name"></div>
             <div class="label"><span>Ip Address: </span><input class="input ip" type="text" value="name"></div>
@@ -112,7 +108,10 @@ select{
     <script type="text/tiscript">
       function addOp(v){
         $(#slHdn).options.$append(<option>{v}</option>);
-      }
+      };
+      function addMac(v){
+        $(#slNet).options.$append(<option>{v}</option>);
+      };
     </script>
 </body>
 </html>
