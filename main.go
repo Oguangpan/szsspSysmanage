@@ -25,34 +25,34 @@ import (
 	"github.com/tealeg/xlsx"
 )
 
-const xlsxFile string = "//33.66.96.14/public/2018台账.xlsx"
-const 临时Ip string = "33.66.100.255"
+const xlsxFile string = "Z:\a\2018台账.xlsx"
+const tempIp string = "33.66.100.255"
 
 // 定义接口
-type 系统 interface {
-	设置网络地址()
-	获取设备信息()
-	获取数据库信息()
-	上传设备信息(信息 设备)
+type systemer interface {
+	setIp()
+	getdeviceInfo()
+	getDbinfo()
+	updateDeviceInfo()
 }
 
 // 定义结构
-type 设备 struct {
-	用户名     string
-	部门      string
-	硬盘序列号列表 []string
-	网卡MAC列表 []map[string]string
-	IP地址    string
-	系统类型    string
+type thisComputer struct {
+	userName       string
+	department     string
+	hardDiskNumber []string
+	macs           []map[string]string
+	ip             string
+	osType         string
 }
 
 // 获取设备信息并初始化窗口中的列表元素
-func (p *设备) 获取设备信息() (硬盘 []string, 网卡 []map[string]string) {
-	// 硬盘序列号列表
-	ids := 运行命令("wmic diskdrive get serialnumber")
+func (p *thisComputer) getdeviceInfo() (h []string, c []map[string]string) {
+	// hardDiskNumber
+	ids := runCmd("wmic diskdrive get serialnumber")
 	var slicel []string = strings.Fields(ids)[1:]
 	for _, j := range slicel {
-		硬盘 = append(硬盘, j)
+		h = append(h, j)
 	}
 
 	// 网卡信息列表
@@ -66,31 +66,31 @@ func (p *设备) 获取设备信息() (硬盘 []string, 网卡 []map[string]stri
 		tmp["Name"] = v.Name
 		tmp["Mac"] = v.HardwareAddr.String()
 		if tmp["Mac"] != "" {
-			网卡 = append(网卡, tmp)
+			c = append(c, tmp)
 		}
 	}
 
 	// 系统版本号
-	s := 运行命令("ver")
+	s := runCmd("ver")
 	if string.Contains(s, "10") {
-		p.系统类型 = "win10"
+		p.osType = "win10"
 	} else if string.Contains(s, "6.1") {
-		p.系统类型 = "win7"
+		p.osType = "win7"
 	} else if string.Contains(s, "5.1") {
-		p.系统类型 = "winxp"
+		p.osType = "winxp"
 	} else {
-		p.系统类型 = "null"
+		p.osType = "null"
 	}
 
 	return
 }
 
-func 查号(目标 string, 表格 *xlsx.File, 查号信道 chan []string) {
+func searchIp(t string, xlsxObjects *xlsx.File, searchIpChan chan []string) {
 	var tlist []string
-	for k, v := range 表格.Sheets[0].Rows {
+	for k, v := range xlsxObjects.Sheets[0].Rows {
 		for _, l := range v.Cells {
-			if l.Value == 目标 {
-				for _, ce := range 表格.Sheets[0].Rows[k].Cells {
+			if l.Value == t {
+				for _, ce := range xlsxObjects.Sheets[0].Rows[k].Cells {
 					//println(ce.Value)
 					tlist = append(tlist, ce.Value)
 				}
@@ -98,7 +98,7 @@ func 查号(目标 string, 表格 *xlsx.File, 查号信道 chan []string) {
 		}
 	}
 
-	查号信道 <- tlist
+	searchIpChan <- tlist
 
 }
 
@@ -106,36 +106,36 @@ func 查号(目标 string, 表格 *xlsx.File, 查号信道 chan []string) {
 // 这里获取窗口中被选中的硬盘序列号和网卡mac地址。
 // 这里打算使用协程，同时在xlsx中查询硬盘和网卡
 // 尝试通过三维数组加快搜索速度
-func (p *设备) 获取数据库信息() {
+func (p *thisComputer) getDbinfo() {
 
 	// 这两个变量内容从窗口中的两个选择框获取
-	var 硬盘序列号 string
-	var 网卡MAC地址 string
+	var hdId string
+	var cMac string
 
-	表格, _ := xlsx.OpenFile(xlsxFile)
+	xlsxObjects, _ := xlsx.OpenFile(xlsxFile)
 	info := make(chan []string)
 
-	go 查号(硬盘序列号, 表格, info)
-	go 查号(网卡MAC地址, 表格, info)
-	通过硬盘找到的目标, 通过网卡找到的目标 := <-info, <-info
+	go searchIp(hdId, xlsxObjects, info)
+	go searchIp(cMac, xlsxObjects, info)
+	hdTarget, cmacTarget := <-info, <-info
 	switch {
-	case len(通过硬盘找到的目标) > 0:
-		p.用户名 = 通过硬盘找到的目标[3]
-		p.部门 = 通过硬盘找到的目标[2]
-		p.IP地址 = 通过硬盘找到的目标[10]
-	case len(通过网卡找到的目标) > 0:
-		p.用户名 = 通过网卡找到的目标[3]
-		p.部门 = 通过网卡找到的目标[2]
-		p.IP地址 = 通过网卡找到的目标[10]
+	case len(hdTarget) > 0:
+		p.userName = hdTarget[3]
+		p.department = hdTarget[2]
+		p.ip = hdTarget[10]
+	case len(cmacTarget) > 0:
+		p.userName = cmacTarget[3]
+		p.department = cmacTarget[2]
+		p.ip = cmacTarget[10]
 	default:
 		// 两种数据都没有查询到设备在服务器中的记录信息
 	}
 
-	return // 无需返回值，因为是使用 *设备 直接操作结构体本身中的元素
+	return // 无需返回值，因为是使用 *thisComputer 直接操作结构体本身中的元素
 }
 
 // 调用系统CMD命令执行外部程序
-func 运行命令(s string) (echo string) {
+func runCmd(s string) (echo string) {
 	t, _ := exec.Command("cmd", "/C", s).Output()
 	// echo = ConvertToString(string(t), "gbk", "utf-8")
 	echo = t
@@ -143,12 +143,12 @@ func 运行命令(s string) (echo string) {
 }
 
 // 查询成功自动设置网络失败提示用户填写新设备相关信息并提交数据库
-func (p *设备) 设置网络地址(name string, ip string) {
+func (p *thisComputer) setIp(name string, ip string) {
 	var ipstr string
 	var dnsstr string
 	// 判断当前操作系统版本 避免出现兼容性问题
 
-	switch p.系统类型 {
+	switch p.osType {
 	case "winxp":
 		ipstr = strings.Join([]string{"netsh interface ip set address",
 			"name=\"" + name + "\"",
@@ -186,51 +186,57 @@ func (p *设备) 设置网络地址(name string, ip string) {
 		os.Exit()
 	}
 	// 调用系统命令行进行网络设置
-	运行命令(ipstr)
-	运行命令(dnsstr)
+	runCmd(ipstr)
+	runCmd(dnsstr)
 
 	fmt.Println("网络设置完毕")
 	return
 
 }
 
+func setIpButtonOnclick(root *sciter.Element) {
+	btn1, _ := root.SelectById("btn1")
+	btn1.OnClick(func() {
+		fmt.Println("btn1被点击 了")
+	})
+}
+func getInfoButtonOnclick(root *sciter.Element) {
+	btn2, _ := root.SelectById("btn2")
+	btn2.OnClick(func() {
+		fmt.Println("btn2被点击 了")
+	})
+}
+func UpdateButtonOnclick(root *sciter.Element) {
+	btn3, _ := root.SelectById("btn3")
+	btn3.OnClick(func() {
+		fmt.Println("btn3被点击 了")
+	})
+}
+
+func closeWindow(root *sciter.Element) {
+	closeBtn, _ := root.SelectById("closebtn")
+	closeBtn.OnClick(func() {
+		os.Exit(0)
+	})
+}
+
 func main() {
-	//创建window窗口
-	//参数一表示创建窗口的样式
-	//SW_TITLEBAR 顶层窗口，有标题栏
-	//SW_RESIZEABLE 可调整大小
-	//SW_CONTROLS 有最小/最大按钮
-	//SW_MAIN 应用程序主窗口，关闭后其他所有窗口也会关闭
-	//SW_ENABLE_DEBUG 可以调试
-	//参数二表示创建窗口的矩形
-	w, err := window.New(sciter.SW_TITLEBAR|
-		//sciter.SW_RESIZEABLE|
-		sciter.SW_CONTROLS|
-		sciter.SW_MAIN,
-		//sciter.SW_ENABLE_DEBUG,
-		// 设置窗口大小
-		&sciter.Rect{Left: 0, Top: 0, Right: 300, Bottom: 340})
+	w, err := window.New(sciter.SW_TITLEBAR|sciter.SW_CONTROLS|sciter.SW_MAIN, &sciter.Rect{Left: 0, Top: 0, Right: 720, Bottom: 340})
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	/*
-		三个按钮
-		1. 设置临时IP地址,根据网卡选择框中的选项来设置
-		2. 对比服务器数据,根据获取到的本机的网卡和硬盘序列号来在服务器数据中查找其他数据. 显示在窗口中
-		3. 上传数据按钮, 用于将当前窗口中所有编辑框中和选择框中的所有数据全部上传到服务器数据库中
-	*/
-
-	//启动前的准备工作,获取设备信息并修改页面内容
-	//设备.硬盘序列号列表 = 获取硬盘序列号()
-	//设备.网卡MAC列表 = 获取网卡MAC列表()
-	//窗口重绘()
-	//加载文件
-	w.LoadFile("demo1.html")
-	//设置标题
+	w.LoadFile("newgui.html")
 	w.SetTitle("三洲特管信息化台账录入系统 v1.0")
-	//显示窗口
+
+	root, _ := w.GetRootElement()
+	setIpButtonOnclick(root)
+	getInfoButtonOnclick(root)
+	UpdateButtonOnclick(root)
+	closeWindow(root)
+	// 添加硬盘们的序列号到列表选择框中
+	set1, _ := root.SelectById("slNet")
+	set1.CallFunction("addOp", sciter.NewValue("ris"))
+	// 添加网卡MAC地址列表到列表选择框中
 	w.Show()
-	//运行窗口，进入消息循环
 	w.Run()
 }
