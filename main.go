@@ -24,12 +24,14 @@ import (
 	"github.com/tealeg/xlsx"
 )
 
+// 存放数据的网络服务器中的表格文件
 const xlsxFile string = "Z:\a\2018台账.xlsx"
+
+// 如果没有固定的ip,设置一个临时的ip,便于访问网络服务器
 const tempIp string = "33.66.100.255"
 
 // 定义接口
 type systemer interface {
-	setIp()
 	getdeviceInfo()
 	getDbinfo()
 	updateDeviceInfo()
@@ -37,24 +39,26 @@ type systemer interface {
 
 // 定义结构
 type thisComputer struct {
-	userName       string
-	department     string
-	hardDiskNumber []string
-	macs           []map[string]string
-	ip             string
-	osType         string
+	userName        string
+	department      string
+	hardDiskNumbers []string
+	harddisk        string
+	macs            []map[string]string
+	mac             string
+	ip              string
+	osType          string
 }
 
 // 获取设备信息并初始化窗口中的列表元素
 func (p *thisComputer) getdeviceInfo() (h []string, c []map[string]string) {
-	// hardDiskNumber
+	// 读取硬盘列表
 	ids := runCmd("wmic diskdrive get serialnumber")
 	var slicel []string = strings.Fields(ids)[1:]
 	for _, j := range slicel {
 		h = append(h, j)
 	}
 
-	// 网卡信息列表
+	// 读取网卡信息列表
 	intf, err := net.Interfaces()
 	if err != nil {
 		return
@@ -84,6 +88,7 @@ func (p *thisComputer) getdeviceInfo() (h []string, c []map[string]string) {
 	return
 }
 
+// 查询服务器上xlsx表格中的IP地址
 func searchIp(t string, xlsxObjects *xlsx.File, searchIpChan chan []string) {
 	var tlist []string
 	for k, v := range xlsxObjects.Sheets[0].Rows {
@@ -108,27 +113,40 @@ func searchIp(t string, xlsxObjects *xlsx.File, searchIpChan chan []string) {
 func (p *thisComputer) getDbinfo() {
 
 	// 这两个变量内容从窗口中的两个选择框获取
-	var hdId string
-	var cMac string
+	//	var hdId string = p.harddisk
+	//	var cMac string = p.mac
+	var t string = p.mac
 
 	xlsxObjects, _ := xlsx.OpenFile(xlsxFile)
-	info := make(chan []string)
-
-	go searchIp(hdId, xlsxObjects, info)
-	go searchIp(cMac, xlsxObjects, info)
-	hdTarget, cmacTarget := <-info, <-info
-	switch {
-	case len(hdTarget) > 0:
-		p.userName = hdTarget[3]
-		p.department = hdTarget[2]
-		p.ip = hdTarget[10]
-	case len(cmacTarget) > 0:
-		p.userName = cmacTarget[3]
-		p.department = cmacTarget[2]
-		p.ip = cmacTarget[10]
-	default:
-		// 两种数据都没有查询到设备在服务器中的记录信息
+	var tlist []string
+	for k, v := range xlsxObjects.Sheets[0].Rows {
+		for _, l := range v.Cells {
+			if l.Value == t {
+				for _, ce := range xlsxObjects.Sheets[0].Rows[k].Cells {
+					//println(ce.Value)
+					tlist = append(tlist, ce.Value)
+				}
+			}
+		}
 	}
+	fmt.Println(tlist)
+	//	info := make(chan []string)
+
+	//	go searchIp(hdId, xlsxObjects, info)
+	//	go searchIp(cMac, xlsxObjects, info)
+	//	hdTarget, cmacTarget := <-info, <-info
+	//	switch {
+	//	case len(hdTarget) > 0:
+	//		p.userName = hdTarget[3]
+	//		p.department = hdTarget[2]
+	//		p.ip = hdTarget[10]
+	//	case len(cmacTarget) > 0:
+	//		p.userName = cmacTarget[3]
+	//		p.department = cmacTarget[2]
+	//		p.ip = cmacTarget[10]
+	//	default:
+	//		// 两种数据都没有查询到设备在服务器中的记录信息
+	//	}
 
 	return // 无需返回值，因为是使用 *thisComputer 直接操作结构体本身中的元素
 }
@@ -141,13 +159,13 @@ func runCmd(s string) (echo string) {
 	return
 }
 
-// 查询成功自动设置网络失败提示用户填写新设备相关信息并提交数据库
-func (p *thisComputer) setIp(name string, ip string) {
+// 根据系统类型设置ip地址
+func setIp(name string, ip string, ostype string) {
 	var ipstr string
 	var dnsstr string
 	// 判断当前操作系统版本 避免出现兼容性问题
 
-	switch p.osType {
+	switch ostype {
 	case "winxp":
 		ipstr = strings.Join([]string{"netsh interface ip set address",
 			"name=\"" + name + "\"",
@@ -164,7 +182,7 @@ func (p *thisComputer) setIp(name string, ip string) {
 			"name=\"" + name + "\"",
 			"source=static",
 			"address=" + ip,
-			"mask=255.255.225.0 gateway=33.66.99.169"}, " ")
+			"mask=255.255.224.0 gateway=33.66.99.169"}, " ")
 
 		dnsstr = strings.Join([]string{"netsh interface ip add dnsservers",
 			name,
@@ -175,7 +193,7 @@ func (p *thisComputer) setIp(name string, ip string) {
 			"name=\"" + name + "\"",
 			"source=static",
 			"address=" + ip,
-			"mask=255.255.225.0 gateway=33.66.99.169"}, " ")
+			"mask=255.255.224.0 gateway=33.66.99.169"}, " ")
 
 		dnsstr = strings.Join([]string{"netsh interface ip add dnsservers",
 			name,
@@ -184,35 +202,68 @@ func (p *thisComputer) setIp(name string, ip string) {
 		fmt.Println("未知的操作系统.")
 		os.Exit(0)
 	}
-	// 调用系统命令行进行网络设置
+	// 设置ip 掩码 网关
 	runCmd(ipstr)
+	// 设置DNS
 	runCmd(dnsstr)
 
-	fmt.Println("网络设置完毕")
+	// fmt.Println("网络设置完毕")
 	return
 
 }
 
-func setIpButtonOnclick(root *sciter.Element) {
+// 获取窗口上两个下拉列表框中当前选中的内容
+func (p *thisComputer) getWindowSelectValue(root *sciter.Element) (cardName string) {
+	// 选择网卡下拉列表框获取当前选中的值
+	editNetcad, _ := root.SelectFirst(".right>.label>#slNet")
+	v, _ := editNetcad.GetValue()
+	// 分离出网络名称和网卡mac地址
+	netCadinfo := strings.Split(v.String(), ":")
+	// 给 结构体 中的网卡属性赋值 点击查询按钮的时候会用到
+	p.mac = netCadinfo[1]
+	cardName = netCadinfo[0]
+	editHds, _ := root.SelectFirst(".right>.label>#slHdn")
+	k, _ := editHds.GetValue()
+	p.harddisk = k.String()
+	return
+}
+
+func (p *thisComputer) setIpButtonOnclick(root *sciter.Element) {
+	// 测试,获取被选择的值
 	btn1, _ := root.SelectById("btn1")
+	// 按钮点击事件
 	btn1.OnClick(func() {
-		fmt.Println("btn1被点击 了")
+		v := p.getWindowSelectValue(root)
+		// 使用网络名 设置网络地址 首先判断当前 ip编辑框中是否有地址
+		editIp, _ := root.SelectFirst(".right>.label>#eIp")
+		ip, _ := editIp.GetValue()
+		//根据ip编辑框中是否有ip存在, 选择设置临时ip还是编辑框中的ip
+		if ip.String() != "" {
+			setIp(v, ip.String(), p.osType)
+		} else {
+			setIp(v, tempIp, p.osType)
+		}
+		btn1.CallFunction("popmsgbox", sciter.NewValue("ip地址设置完毕，请稍等片刻进行下一步操作。"))
+		//fmt.Println("btn1被点击 了, 目标当前值是", netCadinfo[0])
 	})
 }
-func getInfoButtonOnclick(root *sciter.Element) {
+func (p *thisComputer) getInfoButtonOnclick(root *sciter.Element) {
 	btn2, _ := root.SelectById("btn2")
 	btn2.OnClick(func() {
-		fmt.Println("btn2被点击 了")
+		p.getWindowSelectValue(root)
+		p.getDbinfo()
+
+		fmt.Println(p.userName, p.department, p.ip)
 	})
 }
-func UpdateButtonOnclick(root *sciter.Element) {
+func (p *thisComputer) UpdateButtonOnclick(root *sciter.Element) {
 	btn3, _ := root.SelectById("btn3")
 	btn3.OnClick(func() {
 		fmt.Println("btn3被点击 了")
 	})
 }
 
-func closeWindow(root *sciter.Element) {
+func (p *thisComputer) closeWindow(root *sciter.Element) {
 	closeBtn, _ := root.SelectById("closebtn")
 	closeBtn.OnClick(func() {
 		os.Exit(0)
@@ -220,6 +271,10 @@ func closeWindow(root *sciter.Element) {
 }
 
 func main() {
+	//cmp 是主接口
+	cmp := new(thisComputer)
+	hds, mas := cmp.getdeviceInfo()
+	// w 是窗口对象
 	w, err := window.New(sciter.SW_TITLEBAR|sciter.SW_CONTROLS|sciter.SW_MAIN, &sciter.Rect{Left: 0, Top: 0, Right: 720, Bottom: 340})
 	if err != nil {
 		log.Fatal(err)
@@ -228,24 +283,25 @@ func main() {
 	w.SetTitle("三洲特管信息化台账录入系统 v1.0")
 
 	root, _ := w.GetRootElement()
-	setIpButtonOnclick(root)
-	getInfoButtonOnclick(root)
-	UpdateButtonOnclick(root)
-	closeWindow(root)
+	cmp.setIpButtonOnclick(root)
+	cmp.getInfoButtonOnclick(root)
+	cmp.UpdateButtonOnclick(root)
+	cmp.closeWindow(root)
 
-	//var cmp systemer
-	cmp := new(thisComputer)
-	hds, mas := cmp.getdeviceInfo()
+	setHd, _ := root.SelectById("slHdn")
+	setNe, _ := root.SelectById("slNet")
 	// 添加硬盘们的序列号到列表选择框中
-	set1, _ := root.SelectById("slHdn")
-	set2, _ := root.SelectById("slNet")
 	for _, j := range hds {
-		set1.CallFunction("addOp", sciter.NewValue(j))
-	}
-	for _, j := range mas {
-		set2.CallFunction("addMac", sciter.NewValue(j["Name"]+":"+j["Mac"]))
+		setHd.CallFunction("addOp", sciter.NewValue(j))
 	}
 	// 添加网卡MAC地址列表到列表选择框中
+	for _, j := range mas {
+		setNe.CallFunction("addMac", sciter.NewValue(j["Name"]+":"+j["Mac"]))
+	}
+	// 更新版本编辑框中的设备系统版本数据
+	editOstype, _ := root.SelectFirst(".right>.label>#eVersion")
+	editOstype.SetValue(sciter.NewValue(cmp.osType))
+
 	w.Show()
 	w.Run()
 }

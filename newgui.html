@@ -18,7 +18,10 @@ html{
     margin:*;
     background-color:#0969a2;
     height:90px;
-    text-shadow:1px 1px 4px grey;
+    text-shadow:0 0 0.2em #000, 0 0 0.2em #000;
+}
+.top > h1{
+  margin-left: 2%;
 }
 .bottom{
     width:100%;
@@ -93,25 +96,32 @@ select{
             <button class="button update" id="btn3">Update</button>
         </div>
         <div class="right">
-            <div class="label"><span>User name: </span><input class="input name" type="text" value="name"></div>
-            <div class="label"><span>Group: </span><input class="input group" type="text" value="name"></div>
+            <div class="label"><span>User name: </span><input id="eName" class="input name" type="text" value=""></div>
+            <div class="label"><span>Group: </span><input id="eGroup" class="input group" type="text" value=""></div>
             <div class="label"><span>Networks: </span><select id="slNet">
             </select></div>
             <div class="label"><span>Serial Number: </span><select id="slHdn">
             </select></div>
-            <div class="label"><span>Os version: </span><input class="input version" type="text" value="name"></div>
-            <div class="label"><span>Ip Address: </span><input class="input ip" type="text" value="name"></div>
+            <div class="label"><span>Os version: </span><input id="eVersion" class="input version" type="text" value=""></div>
+            <div class="label"><span>Ip Address: </span><input id="eIp" class="input ip" type="text" value=""></div>
         </div>
     </div>
     <div class="bottom"></div>
 
     <script type="text/tiscript">
+      // 程序启动的时候添加本机上所有的硬盘和网卡的信息到下拉选择框中 select
       function addOp(v){
         $(#slHdn).options.$append(<option>{v}</option>);
+        $(#slHdn).value = {v};
       };
       function addMac(v){
         $(#slNet).options.$append(<option>{v}</option>);
+        $(#slNet).value = {v};
       };
+      // 提示信息框
+      function popmsgbox(msg){
+        view.msgbox(#information, msg , "friendly reminder")
+      }
     </script>
 </body>
 </html>
