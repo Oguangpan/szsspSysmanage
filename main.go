@@ -15,7 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"time"
+	"syscall"
 
 	"github.com/sciter-sdk/go-sciter"
 	"github.com/sciter-sdk/go-sciter/window"
@@ -30,6 +30,7 @@ const tempIp string = "33.66.100.255"
 
 // xlsx 对象
 var xlsxObjects *xlsx.File
+var err error
 
 // 定义接口
 type systemer interface {
@@ -168,9 +169,11 @@ func (p *thisComputer) updateDeviceInfo(xlsxObjects *xlsx.File) {
 
 // 调用系统CMD命令执行外部程序
 func runCmd(s string) (echo string) {
-	t, _ := exec.Command("cmd", "/C", s).Output()
-	// echo = ConvertToString(string(t), "gbk", "utf-8")
-	echo = string(t)
+	t := exec.Command("cmd", "/C", s)
+	// 隐藏黑框,一开始居然没想到这个,我还想半天为什么会闪黑框.
+	t.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	o, _ := t.Output()
+	echo = string(o)
 	return
 }
 
@@ -260,13 +263,16 @@ func (p *thisComputer) setIpButtonOnclick(root *sciter.Element) {
 		} else {
 			go setIp(v, tempIp, p.osType)
 		}
-		btn1.CallFunction("popmsgbox", sciter.NewValue("ip地址设置完毕，请稍等10秒进行下一步操作。"))
-		// 等待10秒让老迈的电脑更新IP后能联上内网
-		time.Sleep(10000)
-		xlsxObjects, _ = xlsx.OpenFile(xlsxFile)
+		btn1.CallFunction("popmsgbox", sciter.NewValue("ip地址设置完毕，无论你是否选择了正确的网卡,\n接下来程序会自动尝试连接服务器获取信息,但如果网络不通畅,\n还请耐心等待重复尝试并排查网络故障."))
+		// 判断xlsx文件对象是否为空
 		if xlsxObjects == nil {
-			btn1.CallFunction("popmsgbox", sciter.NewValue("访问内网服务器中数据文件失败，请检查网络状态。"))
-			return
+			go func() {
+				xlsxObjects, err = xlsx.OpenFile(xlsxFile)
+				if err != nil {
+					btn1.CallFunction("popmsgbox", sciter.NewValue("很抱歉：虽然已经努力的访问过服务器数据文件,但似乎还是失败了,请再次检查您的网络状态！"))
+					return
+				}
+			}()
 		}
 	})
 }
@@ -277,11 +283,12 @@ func (p *thisComputer) getInfoButtonOnclick(root *sciter.Element, xlsxObjects *x
 	btn2.OnClick(func() {
 		// 将窗口中下拉选择框中的选中项的值赋于自我对应属性
 		p.getWindowSelectValue(root)
-		// 查询信息
+		// 判断xlsx文件对象是否为空
 		if xlsxObjects == nil {
-			btn2.CallFunction("popmsgbox", sciter.NewValue("致命错误： 请先选择正确网卡点击设置网络按钮并保证连接进入内网！"))
+			btn2.CallFunction("popmsgbox", sciter.NewValue("致命错误：访问内网服务器中数据文件失败，\n请先选择正确网卡点击设置网络按钮并保证连接进入内网！"))
 			return
 		}
+		// 查询信息
 		p.getDbinfo(xlsxObjects)
 		// 把信息填入到窗口中的对应编辑框中
 		editName, _ := root.SelectFirst("#eName")
@@ -298,10 +305,13 @@ func (p *thisComputer) getInfoButtonOnclick(root *sciter.Element, xlsxObjects *x
 func (p *thisComputer) UpdateButtonOnclick(root *sciter.Element, xlsxObjects *xlsx.File) {
 	btn3, _ := root.SelectById("btn3")
 	btn3.OnClick(func() {
+		// 判断xlsx文件对象是否为空
 		if xlsxObjects == nil {
-			btn3.CallFunction("popmsgbox", sciter.NewValue("致命错误： 请先选择正确网卡点击设置网络按钮并保证连接进入内网！"))
+			btn3.CallFunction("popmsgbox", sciter.NewValue("致命错误：访问内网服务器中数据文件失败，\n请先选择正确网卡点击设置网络按钮并保证连接进入内网！"))
 			return
+
 		}
+		// 上传数据到服务器数据文件中
 		p.updateDeviceInfo(xlsxObjects)
 		btn3.CallFunction("popmsgbox", sciter.NewValue("上传数据完毕。"))
 	})
