@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/sciter-sdk/go-sciter"
 	"github.com/sciter-sdk/go-sciter/window"
@@ -26,6 +27,9 @@ const xlsxFile string = "//33.66.96.14/public/2018台账.xlsx"
 
 // 如果没有固定的ip,设置一个临时的ip,便于访问网络服务器
 const tempIp string = "33.66.100.255"
+
+// xlsx 对象
+var xlsxObjects *xlsx.File
 
 // 定义接口
 type systemer interface {
@@ -88,6 +92,9 @@ func (p *thisComputer) getdeviceInfo() (h []string, c []map[string]string) {
 // 查询服务器上xlsx表格中的IP地址
 func searchIp(t string, xlsxObjects *xlsx.File, searchIpChan chan []string) {
 	var tlist []string
+	if xlsxObjects == nil {
+		return
+	}
 	for k, v := range xlsxObjects.Sheets[0].Rows {
 		for _, l := range v.Cells {
 			if l.Value == t {
@@ -100,7 +107,7 @@ func searchIp(t string, xlsxObjects *xlsx.File, searchIpChan chan []string) {
 	}
 
 	searchIpChan <- tlist
-
+	return
 }
 
 // 用户点击查询按钮，连接数据库获取相关信息
@@ -114,6 +121,9 @@ func (p *thisComputer) getDbinfo(xlsxObjects *xlsx.File) {
 	var cMac string = p.mac
 
 	info := make(chan []string)
+	if xlsxObjects == nil {
+		return
+	}
 
 	go searchIp(hdId, xlsxObjects, info)
 	go searchIp(cMac, xlsxObjects, info)
@@ -140,6 +150,9 @@ func (p *thisComputer) getDbinfo(xlsxObjects *xlsx.File) {
 // 上传信息
 
 func (p *thisComputer) updateDeviceInfo(xlsxObjects *xlsx.File) {
+	if xlsxObjects == nil {
+		return
+	}
 	row := xlsxObjects.Sheets[0].AddRow()
 	// 向新生成的行row 插入内容
 	devInfo := []string{" ", " ",
@@ -247,7 +260,14 @@ func (p *thisComputer) setIpButtonOnclick(root *sciter.Element) {
 		} else {
 			go setIp(v, tempIp, p.osType)
 		}
-		btn1.CallFunction("popmsgbox", sciter.NewValue("ip地址设置完毕，请稍等片刻进行下一步操作。"))
+		btn1.CallFunction("popmsgbox", sciter.NewValue("ip地址设置完毕，请稍等10秒进行下一步操作。"))
+		// 等待10秒让老迈的电脑更新IP后能联上内网
+		time.Sleep(10000)
+		xlsxObjects, _ = xlsx.OpenFile(xlsxFile)
+		if xlsxObjects == nil {
+			btn1.CallFunction("popmsgbox", sciter.NewValue("访问内网服务器中数据文件失败，请检查网络状态。"))
+			return
+		}
 	})
 }
 
@@ -258,6 +278,10 @@ func (p *thisComputer) getInfoButtonOnclick(root *sciter.Element, xlsxObjects *x
 		// 将窗口中下拉选择框中的选中项的值赋于自我对应属性
 		p.getWindowSelectValue(root)
 		// 查询信息
+		if xlsxObjects == nil {
+			btn2.CallFunction("popmsgbox", sciter.NewValue("致命错误： 请先选择正确网卡点击设置网络按钮并保证连接进入内网！"))
+			return
+		}
 		p.getDbinfo(xlsxObjects)
 		// 把信息填入到窗口中的对应编辑框中
 		editName, _ := root.SelectFirst("#eName")
@@ -274,6 +298,10 @@ func (p *thisComputer) getInfoButtonOnclick(root *sciter.Element, xlsxObjects *x
 func (p *thisComputer) UpdateButtonOnclick(root *sciter.Element, xlsxObjects *xlsx.File) {
 	btn3, _ := root.SelectById("btn3")
 	btn3.OnClick(func() {
+		if xlsxObjects == nil {
+			btn3.CallFunction("popmsgbox", sciter.NewValue("致命错误： 请先选择正确网卡点击设置网络按钮并保证连接进入内网！"))
+			return
+		}
 		p.updateDeviceInfo(xlsxObjects)
 		btn3.CallFunction("popmsgbox", sciter.NewValue("上传数据完毕。"))
 	})
@@ -308,26 +336,21 @@ func main() {
 	//cmp 是主接口
 	cmp := new(thisComputer)
 	hds, mas := cmp.getdeviceInfo()
+
 	// w 是窗口对象
 	w, _ := window.New(sciter.SW_TITLEBAR|sciter.SW_CONTROLS|sciter.SW_MAIN, &sciter.Rect{Left: 0, Top: 0, Right: 720, Bottom: 340})
 
-	// xlsx 对象
-	xlsxObjects, err := xlsx.OpenFile(xlsxFile)
-	if err != nil {
-		os.Exit(1)
-	}
-
 	w.LoadFile("newgui.html")
 	w.SetTitle("三洲特管信息化台账录入系统 v1.0")
-	// 所有按钮的事件响应
+	// 按钮的事件响应
 	root, _ := w.GetRootElement()
+	newWindowtextSet(root, hds, mas, cmp)
 	cmp.setIpButtonOnclick(root)
 	cmp.getInfoButtonOnclick(root, xlsxObjects)
 	cmp.UpdateButtonOnclick(root, xlsxObjects)
 	cmp.closeWindow(root)
-
-	newWindowtextSet(root, hds, mas, cmp)
-
 	w.Show()
 	w.Run()
+	// 需要预先在程序启动的时候设置一个临时的IP地址。
+
 }
