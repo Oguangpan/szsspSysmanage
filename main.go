@@ -271,7 +271,7 @@ func (p *thisComputer) setIpButtonOnclick(root *sciter.Element) {
 
 // 查询按钮事件
 // 通过两个下拉列表框中的被选中项查询其他信息
-func (p *thisComputer) getInfoButtonOnclick(root *sciter.Element, xlsxObjects *xlsx.File) {
+func (p *thisComputer) getInfoButtonOnclick(root *sciter.Element) {
 	btn2, _ := root.SelectById("btn2")
 	btn2.OnClick(func() {
 		// 将窗口中下拉选择框中的选中项的值赋于自我对应属性
@@ -296,7 +296,7 @@ func (p *thisComputer) getInfoButtonOnclick(root *sciter.Element, xlsxObjects *x
 }
 
 // 上传数据到服务器中的xlsx表格中
-func (p *thisComputer) UpdateButtonOnclick(root *sciter.Element, xlsxObjects *xlsx.File) {
+func (p *thisComputer) UpdateButtonOnclick(root *sciter.Element) {
 	btn3, _ := root.SelectById("btn3")
 	btn3.OnClick(func() {
 		// 判断xlsx文件对象是否为空
@@ -353,9 +353,9 @@ func main() {
 	// 设置IP按钮事件
 	cmp.setIpButtonOnclick(root)
 	// 获取信息按钮事件
-	cmp.getInfoButtonOnclick(root, xlsxObjects)
+	cmp.getInfoButtonOnclick(root)
 	// 上传数据按钮事件
-	cmp.UpdateButtonOnclick(root, xlsxObjects)
+	cmp.UpdateButtonOnclick(root)
 	// 关闭窗口事件
 	cmp.closeWindow(root)
 	//	x := make(chan *xlsx.File)
