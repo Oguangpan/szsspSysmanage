@@ -11,6 +11,7 @@
 package main
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"os/exec"
@@ -263,29 +264,22 @@ func (p *thisComputer) setIpButtonOnclick(root *sciter.Element) {
 		} else {
 			go setIp(v, tempIp, p.osType)
 		}
-		btn1.CallFunction("popmsgbox", sciter.NewValue("ip地址设置完毕，无论你是否选择了正确的网卡,\n接下来程序会自动尝试连接服务器获取信息,但如果网络不通畅,\n还请耐心等待重复尝试并排查网络故障."))
-		// 判断xlsx文件对象是否为空
-		if xlsxObjects == nil {
-			go func() {
-				xlsxObjects, err = xlsx.OpenFile(xlsxFile)
-				if err != nil {
-					btn1.CallFunction("popmsgbox", sciter.NewValue("很抱歉：虽然已经努力的访问过服务器数据文件,但似乎还是失败了,请再次检查您的网络状态！"))
-					return
-				}
-			}()
-		}
+		btn1.CallFunction("popmsgbox", sciter.NewValue("ip地址设置完毕，无论你是否选择了正确的网卡,\n接下来10秒,程序会自动尝试连接服务器获取信息,但如果网络不通畅,\n还请耐心等待重复尝试并排查网络故障."))
+
 	})
 }
 
+// 查询按钮事件
 // 通过两个下拉列表框中的被选中项查询其他信息
 func (p *thisComputer) getInfoButtonOnclick(root *sciter.Element, xlsxObjects *xlsx.File) {
 	btn2, _ := root.SelectById("btn2")
 	btn2.OnClick(func() {
 		// 将窗口中下拉选择框中的选中项的值赋于自我对应属性
 		p.getWindowSelectValue(root)
-		// 判断xlsx文件对象是否为空
-		if xlsxObjects == nil {
-			btn2.CallFunction("popmsgbox", sciter.NewValue("致命错误：访问内网服务器中数据文件失败，\n请先选择正确网卡点击设置网络按钮并保证连接进入内网！"))
+		xlsxObjects, err = xlsx.OpenFile(xlsxFile)
+		if err != nil {
+			fmt.Println(err)
+			btn2.CallFunction("popmsgbox", sciter.NewValue("很抱歉：虽然已经努力的访问过服务器数据文件,\n但似乎还是失败了,请再次检查您的网络状态后重试！\n"))
 			return
 		}
 		// 查询信息
@@ -352,13 +346,32 @@ func main() {
 
 	w.LoadFile("newgui.html")
 	w.SetTitle("三洲特管信息化台账录入系统 v1.0")
-	// 按钮的事件响应
+	// 窗口事件响应
 	root, _ := w.GetRootElement()
+	// 窗口元素数据填充
 	newWindowtextSet(root, hds, mas, cmp)
+	// 设置IP按钮事件
 	cmp.setIpButtonOnclick(root)
+	// 获取信息按钮事件
 	cmp.getInfoButtonOnclick(root, xlsxObjects)
+	// 上传数据按钮事件
 	cmp.UpdateButtonOnclick(root, xlsxObjects)
+	// 关闭窗口事件
 	cmp.closeWindow(root)
+	//	x := make(chan *xlsx.File)
+	//	go func() {
+	//		if xlsxObjects == nil {
+	//			for {
+	//				xl, _ := xlsx.OpenFile(xlsxFile)
+	//				if xl != nil {
+	//					x <- xl
+	//					break
+	//				}
+	//			}
+	//		}
+
+	//	}()
+	//	xlsxObjects = <-x
 	w.Show()
 	w.Run()
 	// 需要预先在程序启动的时候设置一个临时的IP地址。
